@@ -128,8 +128,8 @@ export default function WhatsAppWeb() {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Desktop Layout */}
-      <div className="hidden md:flex w-full pt-10">
-        <div className="w-1/3 border-r border-gray-300">
+        <div className="hidden md:flex w-full">
+          <div className="w-1/3 border-r border-gray-300">
           <ChatSidebar chats={chats} selectedChat={selectedChat} onSelectChat={handleSelectChat} />
         </div>
         <div className="flex-1">
@@ -164,8 +164,7 @@ export default function WhatsAppWeb() {
       </div>
 
       {/* Mobile Layout */}
-      <div className="md:hidden w-full pt-10">
-        {!isMobileView ? (
+      <div className="md:hidden w-full">        {!isMobileView ? (
           <ChatSidebar chats={chats} selectedChat={selectedChat} onSelectChat={handleSelectChat} />
         ) : selectedChat ? (
           <ChatWindow
