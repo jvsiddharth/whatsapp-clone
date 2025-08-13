@@ -8,7 +8,7 @@ import { ErrorMessage } from "@/components/error-message"
 import { useChats, useMessages, useWebSocket } from "@/hooks/use-api"
 import type { Chat } from "@/lib/types"
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3000"
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "wss://whatsapp-clone-nijz.onrender.com/websocket"
 
 export default function WhatsAppWeb() {
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
