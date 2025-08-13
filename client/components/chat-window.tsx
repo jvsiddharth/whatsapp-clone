@@ -43,19 +43,25 @@ export function ChatWindow({ chat, onBack }: ChatWindowProps) {
     setLoading(true)
     setError(null)
 
+    console.log('Fetching messages for chat:', chat.wa_id)
+
     apiClient
       .getMessages(chat.wa_id)
       .then((res) => {
         if (!isMounted) return
+        console.log('Messages API response:', res)
         if (res.success && res.data) {
+          console.log('Messages data:', res.data)
           setMessages(res.data)
           setError(null)
         } else {
+          console.error('Failed to load messages:', res.error)
           setError(res.error ?? "Failed to load messages")
         }
       })
-      .catch(() => {
+      .catch((error) => {
         if (!isMounted) return
+        console.error('Messages API error:', error)
         setError("An error occurred while loading messages")
       })
       .finally(() => {
@@ -75,25 +81,51 @@ export function ChatWindow({ chat, onBack }: ChatWindowProps) {
 
   // Handle sending new message
   const handleSend = useCallback(async () => {
-    if (!newMessage.trim() || sending || !chat) return
+    if (!newMessage.trim() || sending || !chat) return;
 
-    setSending(true)
-    setError(null)
+    setSending(true);
+    setError(null);
+
+    // Build a local message object immediately
+    const tempMessage: Message = {
+      message_id: `temp-${Date.now()}`, // temporary ID until WhatsApp confirms
+      wa_id: chat.wa_id,
+      contact_name: chat.name || "",
+      direction: "outgoing",
+      type: "text",
+      body: newMessage.trim(),
+      timestamp: new Date().toISOString(),
+      phone_number_id: "",
+      display_phone_number: "",
+      status: "sent",
+    };
+
+    // Optimistically add to the chat
+    setMessages((prev) => [...prev, tempMessage]);
+    setNewMessage("");
 
     try {
-      const res = await apiClient.sendMessage(chat.wa_id, newMessage.trim())
-      if (res.success && res.data) {
-        setMessages((prev) => [...prev, res.data])
-        setNewMessage("")
-      } else {
-        setError(res.error ?? "Failed to send message")
+      const res = await apiClient.sendMessage(chat.wa_id, tempMessage.body);
+
+      // If backend returns an ID, update the message
+      if (res.success && res.data?.message_id) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.message_id === tempMessage.message_id
+              ? { ...msg, message_id: res.data.message_id }
+              : msg
+          )
+        );
+      } else if (!res.success) {
+        setError(res.error ?? "Failed to send message");
       }
     } catch {
-      setError("An error occurred while sending message")
+      setError("An error occurred while sending message");
     } finally {
-      setSending(false)
+      setSending(false);
     }
-  }, [newMessage, sending, chat])
+  }, [newMessage, sending, chat]);
+
 
   // Handle Enter key press in input
   const handleKeyPress = useCallback(
@@ -105,6 +137,14 @@ export function ChatWindow({ chat, onBack }: ChatWindowProps) {
     },
     [handleSend]
   )
+
+  // Generate a unique key for each message
+  const getMessageKey = (message: Message, index: number): string => {
+    // Try to use message_id first, then _id, then fallback to index with timestamp
+    return message.message_id || 
+           message._id || 
+           `${index}-${message.timestamp}-${message.body?.slice(0, 10) || 'no-body'}`
+  }
 
   if (!chat) {
     return (
@@ -161,7 +201,7 @@ export function ChatWindow({ chat, onBack }: ChatWindowProps) {
 
       {/* Messages */}
       <div
-        className="flex-1 overflow-y-auto p-4 space-y-2"
+        className="flex-1 overflow-y-auto p-4 flex flex-col space-y-2"
         style={{
           backgroundImage:
             `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fillRule='evenodd'%3E%3Cg fill='%23f0f0f0' fillOpacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
@@ -182,23 +222,32 @@ export function ChatWindow({ chat, onBack }: ChatWindowProps) {
             <p className="text-gray-500">No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          messages.map((message) => (
+          messages.map((message, index) => {
+            console.log(`Message ${index}:`, message)
+            return (
             <div
-              key={message.message_id ?? message._id}
-              className={`max-w-[70%] p-2 rounded-lg break-words ${
-                message.direction === "incoming"
-                  ? "bg-gray-200 self-start"
-                  : "bg-green-200 self-end"
-              }`}
-              tabIndex={-1}
-              aria-label={`${message.direction} message: ${message.body}`}
+              key={getMessageKey(message, index)}
+              className={`flex w-full ${message.direction === "incoming" ? "justify-start" : "justify-end"} mb-2`}
             >
-              <p className="text-sm text-gray-800 whitespace-pre-wrap">{message.body}</p>
-              <p className="text-xs text-gray-500 mt-1 select-none">
-                {new Date(message.timestamp).toLocaleString()} • {message.status}
-              </p>
+              <div
+                className={`max-w-[70%] p-2 rounded-lg break-words ${
+                  message.direction === "incoming"
+                    ? "bg-gray-200"
+                    : "bg-green-200"
+                }`}
+                tabIndex={-1}
+                aria-label={`${message.direction || 'unknown'} message: ${message.body || 'No content'}`}
+              >
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                  {message.body || 'No message content'}
+                </p>
+                <p className="text-xs text-gray-500 mt-1 select-none">
+                  {message.timestamp ? new Date(message.timestamp).toLocaleString() : 'Unknown time'} • {message.status || 'No status'}
+                </p>
+              </div>
             </div>
-          ))
+            )
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -261,4 +310,3 @@ export function ChatWindow({ chat, onBack }: ChatWindowProps) {
     </div>
   )
 }
-
