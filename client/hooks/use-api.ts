@@ -83,8 +83,6 @@ export function useMessages(waId: string | null) {
     setMessages((prev) => prev.map((msg) => (msg.id === messageId ? { ...msg, ...updates } : msg)))
   }, [])
 
-  
-
   const sendMessage = useCallback(
     async (content: string) => {
       if (!waId) return null
@@ -94,7 +92,7 @@ export function useMessages(waId: string | null) {
         id: `temp-${Date.now()}`,
         wa_id: waId,
         from: "me",
-        to: waId,
+        to: "me",
         content,
         timestamp: new Date().toISOString(),
         status: "sent",
@@ -128,7 +126,6 @@ export function useMessages(waId: string | null) {
     sendMessage,
   }
 }
-
 
 export function useWebSocket(url?: string) {
   const [socket, setSocket] = useState<WebSocket | null>(null)
