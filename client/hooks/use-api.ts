@@ -93,8 +93,8 @@ export function useMessages(waId: string | null) {
       const tempMessage: Message = {
         id: `temp-${Date.now()}`,
         wa_id: waId,
-        from: waId,
-        to: "me",
+        from: "me",
+        to: waId,
         content,
         timestamp: new Date().toISOString(),
         status: "sent",
